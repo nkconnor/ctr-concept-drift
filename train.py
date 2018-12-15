@@ -1,32 +1,49 @@
-import tensorflow as tf
 from tensorflow.python.estimator.canned.linear import LinearRegressor
 from tensorflow.train import FtrlOptimizer
-from dataset import criteo_partition_fn
+from dataset import criteo_partition_fn, criteo_features
+import json
 
 # how do we establish a model baseline
 # we want to separate update lag as cleanly as possible.
 
-features = [
-      tf.feature_column.categorical_column_with_identity('i1', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i2', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i3', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i4', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i5', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i6', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i7', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i8', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_hash_bucket('c1', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c2', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c3', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c4', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c5', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c6', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c7', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c8', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c9', hash_bucket_size=1e6)
-]
+EXPERIMENT_LOG_FILE = "data/experiment.log"
 
-def run_experiment(experiment_id, interval_secs):
+def log_eval(experiment_id,
+             interval_secs,
+             partition,
+             model_hyperparams,
+             data_hyperparams,
+             metrics):
+    """
+    Write intermediate result to file
+    :param experiment_id: 
+    :param interval_secs: 
+    :param partition: 
+    :param model_hyperparams: 
+    :param data_hyperparams:
+    :param metrics: 
+    :return: 
+    """
+    with open(EXPERIMENT_LOG_FILE, "a") as fh:
+        fh.write(json.dumps({
+          "experiment_id": experiment_id,
+          "interval_seconds": interval_secs,
+          "partition": partition,
+          "hyperparameters": {
+              "model": model_hyperparams,
+              "data": data_hyperparams
+          },
+          "metrics": dict((k, float(v)) for k, v in metrics.items())
+        }) + "\n")
+
+def run_experiment(
+        experiment_id,
+        interval_secs,
+        model_hyperparams={},
+        model_dir=None,
+        data_hyperparams=dict(shuffle=False),
+        data_fname="data/data.txt",
+):
     """
      we can partition the data by lag_seconds
      e.g. lag_seconds = 60 * 60 * 24 = 1 day
@@ -40,35 +57,30 @@ def run_experiment(experiment_id, interval_secs):
           
     we will observe cumulative AUC, log loss, accuracy, ..      
     
-    :param interval_seconds: 
+    :param experiment_id: 
+    :param interval_secs: 
+    :param model_hyperparams: 
+    :param model_dir: 
+    :param data_hyperparams: 
+    :param data_fname: 
     :return: 
     """
-
     model = LinearRegressor(
-        model_dir="data/models/%s/" % (experiment_id),
-        feature_columns=features,
-        optimizer=FtrlOptimizer(learning_rate=0.1,
-                                l1_regularization_strength=0.5,
-                                l2_regularization_strength=0.5,
-                                )
+        model_dir=("data/models/%s/" % (experiment_id)) if model_dir is None else model_dir,
+        feature_columns=criteo_features,
+        optimizer=FtrlOptimizer(**model_hyperparams)
     )
 
-    data_fn = criteo_partition_fn("data/data.txt", interval_secs=interval_secs)
+    cur_partition = 0
+    for input_fn in criteo_partition_fn(data_fname, interval_secs=interval_secs):
+        log_eval(
+            experiment_id,
+            interval_secs,
+            cur_partition,
+            model_hyperparams,
+            data_hyperparams,
+            model.evaluate(input_fn(dict(shuffle=False)))
+        )
 
-    base_train = next(data_fn)
-    model.train(base_train)
-
-    i = 0
-    for data in data_fn:
-        if i > 10:
-            break
-
-        model.evaluate(data)
-        model.train(data)
-        i += 1
-
-
-run_experiment(
-    "600_seconds",
-    60 * 5 * 2
-) # 5mins
+        model.train(input_fn(data_hyperparams))
+        cur_partition+=1

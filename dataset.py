@@ -1,9 +1,30 @@
-import math
-from tensorflow .estimator.inputs import pandas_input_fn
+import math, csv
+import tensorflow as tf
+from tensorflow.estimator.inputs import pandas_input_fn
 import pandas as pd
-import csv
 
 CRITEO_MAX_SECONDS = 5270499
+
+
+criteo_features = [
+      tf.feature_column.categorical_column_with_identity('i1', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_identity('i2', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_identity('i3', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_identity('i4', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_identity('i5', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_identity('i6', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_identity('i7', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_identity('i8', num_buckets=10000, default_value=0)
+    , tf.feature_column.categorical_column_with_hash_bucket('c1', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c2', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c3', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c4', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c5', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c6', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c7', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c8', hash_bucket_size=1e6)
+    , tf.feature_column.categorical_column_with_hash_bucket('c9', hash_bucket_size=1e6)
+]
 
 def criteo_partition_fn(filename, interval_secs):
     """
@@ -31,10 +52,10 @@ def criteo_partition_fn(filename, interval_secs):
                 dfi = dfi.astype(int)
                 dfc = pd.DataFrame.from_records(Xcat, columns=['c1','c2','c3','c4','c5','c6','c7','c8','c9'])
 
-                yield pandas_input_fn(
+                yield lambda options: pandas_input_fn(
                     pd.concat(objs=[dfi,dfc], axis=1),
                     pd.Series(y),
-                    shuffle=False
+                    **options
                 )
                 Xint = []
                 Xcat = []
