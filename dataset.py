@@ -48,7 +48,10 @@ def cross_all_columns():
     return fcs
 
 
-criteo_features += cross_all_columns()
+# taking mega long as expected
+# maybe PCA or manual analysis
+# or another model
+#criteo_features += cross_all_columns()
 
 
 def criteo_partition_fn(filename, interval_secs):
