@@ -76,15 +76,16 @@ def criteo_partition_fn(filename, interval_secs):
                 dfi += 2
                 dfi = dfi.astype(int)
                 dfc = pd.DataFrame.from_records(Xcat, columns=categorical_names)
-
-                yield lambda options: pandas_input_fn(
-                    pd.concat(objs=[dfi,dfc], axis=1),
-                    pd.Series(y),
-                    **options
-                )
+                dfy = pd.Series(y)
                 Xint = []
                 Xcat = []
                 y = []
+                yield lambda options: pandas_input_fn(
+                    pd.concat(objs=[dfi,dfc], axis=1),
+                    dfy,
+                    **options
+                )
+
                 #print("index: %s, current_partition: %s, line: %s, rowts: %s, rowts2: %s" % (index, current_partition, line_number, row[0], row[1]))
 
             Xint.append(list(map(lambda x: None if x == '' else int(x), row[2:10])))
