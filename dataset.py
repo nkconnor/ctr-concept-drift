@@ -1,30 +1,55 @@
 import math, csv
-import tensorflow as tf
+from tensorflow.feature_column import categorical_column_with_hash_bucket, \
+    categorical_column_with_identity, crossed_column
+
 from tensorflow.estimator.inputs import pandas_input_fn
 import pandas as pd
 
 CRITEO_MAX_SECONDS = 5270499
 
+"""
+We should FCs editable as an experiment parameter. But,
+basically we have [c1...cn, i1...in, c1c2...cn-1cn, c1i1...cnin];
+where c1, cnin hash size ~ 1e6 and i1 max value 10000.
+ 
+I haven't examined the integer columns to determine if some are numeric. 
+Also, do not know the max value to use. It'd be easy to compute.
+"""
+categorical_names = ['c1','c2','c3','c4','c5','c6','c7','c8','c9']
+integer_names = ['i1','i2','i3','i4','i5','i6','i7','i8']
 
-criteo_features = [
-      tf.feature_column.categorical_column_with_identity('i1', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i2', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i3', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i4', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i5', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i6', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i7', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_identity('i8', num_buckets=10000, default_value=0)
-    , tf.feature_column.categorical_column_with_hash_bucket('c1', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c2', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c3', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c4', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c5', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c6', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c7', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c8', hash_bucket_size=1e6)
-    , tf.feature_column.categorical_column_with_hash_bucket('c9', hash_bucket_size=1e6)
-]
+criteo_features = list(map(
+    lambda n: categorical_column_with_hash_bucket(
+        n, hash_bucket_size=1e6
+    ), categorical_names))
+
+criteo_features += list(map(
+    lambda n: categorical_column_with_identity(
+        n, num_buckets=10000, default_value=0
+    ), integer_names
+))
+
+def cross_all_columns():
+    all = categorical_names + integer_names
+    fcs = []
+    fck = {}
+    # probably way cleaner way to do this
+    # set key indicating pairs have been crossed
+    # if not crossed, append to fcs, and set true
+    for n1 in all:
+        for n2 in all:
+            k1 = "%s%s" % (n1, n2)
+            k2 = "%s%s" % (n2, n1)
+            if fck.get(k1) is None and fck.get(k2) is None:
+                fcs.append(crossed_column([n1, n2], 1e6))
+                fck[k1] = True
+                fck[k2] = True
+
+    return fcs
+
+
+criteo_features += cross_all_columns()
+
 
 def criteo_partition_fn(filename, interval_secs):
     """
@@ -43,14 +68,14 @@ def criteo_partition_fn(filename, interval_secs):
         for row in tsv:
             current_partition = int(math.floor(int(row[0]) / interval_secs))
             if index < current_partition:
-                dfi = pd.DataFrame.from_records(Xint, columns=['i1','i2','i3','i4','i5','i6','i7','i8'])
+                dfi = pd.DataFrame.from_records(Xint, columns=integer_names)
                 ### if interperted numerically
                 ### dfi = dfi.fillna(dfi.mean())
                 ## shift everything by 2, N/A=1
                 dfi = dfi.fillna(int(-1))
                 dfi += 2
                 dfi = dfi.astype(int)
-                dfc = pd.DataFrame.from_records(Xcat, columns=['c1','c2','c3','c4','c5','c6','c7','c8','c9'])
+                dfc = pd.DataFrame.from_records(Xcat, columns=categorical_names)
 
                 yield lambda options: pandas_input_fn(
                     pd.concat(objs=[dfi,dfc], axis=1),

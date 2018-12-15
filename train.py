@@ -1,7 +1,7 @@
-from tensorflow.python.estimator.canned.linear import LinearRegressor
+from tensorflow.estimator import LinearClassifier
 from tensorflow.train import FtrlOptimizer
 from dataset import criteo_partition_fn, criteo_features
-import json
+import json, datetime
 
 # how do we establish a model baseline
 # we want to separate update lag as cleanly as possible.
@@ -40,7 +40,6 @@ def run_experiment(
         experiment_id,
         interval_secs,
         model_hyperparams={},
-        model_dir=None,
         data_hyperparams=dict(shuffle=False),
         data_fname="data/data.txt",
 ):
@@ -65,8 +64,8 @@ def run_experiment(
     :param data_fname: 
     :return: 
     """
-    model = LinearRegressor(
-        model_dir=("data/models/%s/" % (experiment_id)) if model_dir is None else model_dir,
+    model = LinearClassifier(
+        model_dir=("data/models/%s-%s/" % (experiment_id, str(datetime.datetime.now()))),
         feature_columns=criteo_features,
         optimizer=FtrlOptimizer(**model_hyperparams)
     )

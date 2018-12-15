@@ -14,8 +14,8 @@ class Run(object):
         Example usage:
         
         python3.4 run.py experiment \
-            --experiment-id=30_mins \
-            --interval-secs=1800 \
+            --experiment-id=60_mins_defaults \
+            --interval-secs=3600 \
             --model-params='{"learning_rate":0.1, "l1_regularization_strength":0.5, "l2_regularization_strength":0.5}' \
             --data-params='{"shuffle":False, "num_epochs":1}'
             
