@@ -14,10 +14,10 @@ class Run(object):
         Example usage:
         
         python3.4 run.py experiment \
-            --experiment-id=60_mins_defaults \
+            --experiment-id=60_mins_reduce_hash \
             --interval-secs=3600 \
-            --model-params='{"learning_rate":0.1, "l1_regularization_strength":0.5, "l2_regularization_strength":0.5}' \
-            --data-params='{"shuffle":False, "num_epochs":1}'
+            --model-params='{"learning_rate":0.05, "l1_regularization_strength":0.00, "l2_regularization_strength":0.5}' \
+            --data-params='{"shuffle":True, "num_epochs":1, "num_threads":2, batch_size:256}'
             
         :param experiment_id: 
         :param interval_secs: 
@@ -30,17 +30,6 @@ class Run(object):
             interval_secs=interval_secs,
             model_hyperparams=model_params,
             data_hyperparams=data_params)
-
-       ##      model_hyperparams=dict(
-       ##          learning_rate=0.1,
-       ##          l1_regularization_strength=0.5,
-       ##          l2_regularization_strength=0.5
-       ##      ),
-       ##      data_hyperparams=dict(
-       ##          shuffle=False,
-       ##          epochs=2
-       ##      )
-       ##  )
 
 if __name__ == '__main__':
     fire.Fire(Run)

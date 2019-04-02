@@ -20,12 +20,12 @@ integer_names = ['i1','i2','i3','i4','i5','i6','i7','i8']
 
 criteo_features = list(map(
     lambda n: categorical_column_with_hash_bucket(
-        n, hash_bucket_size=1e6
+        n, hash_bucket_size=1e5
     ), categorical_names))
 
 criteo_features += list(map(
     lambda n: categorical_column_with_identity(
-        n, num_buckets=10000, default_value=0
+        n, num_buckets=7500, default_value=0
     ), integer_names
 ))
 
@@ -80,11 +80,12 @@ def criteo_partition_fn(filename, interval_secs):
                 dfi = dfi.astype(int)
                 dfc = pd.DataFrame.from_records(Xcat, columns=categorical_names)
                 dfy = pd.Series(y)
+                dfx = pd.concat(objs=[dfi,dfc], axis=1)
                 Xint = []
                 Xcat = []
                 y = []
                 yield lambda options: pandas_input_fn(
-                    pd.concat(objs=[dfi,dfc], axis=1),
+                    dfx,
                     dfy,
                     **options
                 )
